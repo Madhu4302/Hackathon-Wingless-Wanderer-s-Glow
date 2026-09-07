@@ -1,0 +1,95 @@
+# Copyright © 2025-2026 Cognizant Technology Solutions Corp, www.cognizant.com.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# END COPYRIGHT
+
+# The schema specifications for this file are documented here:
+# https://github.com/cognizant-ai-lab/neuro-san/blob/main/docs/agent_hocon_reference.md
+
+{
+    # Optional metadata describing this agent network
+    "metadata": {
+        "description": "A basic travel-planning network where a front-man agent turns a user request into a simple itinerary and budget-aware suggestions.",
+        "tags": ["basic", "example", "travel"],
+        "sample_queries": [
+            "Plan a 3-day trip to Kyoto on a moderate budget.",
+            "Recommend a weekend getaway with beaches and good food.",
+            "Create a family-friendly city trip under $500."
+        ]
+    },
+
+    # Load the shared LLM configuration from a single source of truth.
+    include "config/llm_config.hocon",
+
+    "tools": [
+        {
+            "name": "trip_advisor",
+
+            "function": {
+                "description": """
+I help create short, practical travel plans.
+Ask for the destination, trip length, budget, and interests, and I will propose a simple itinerary.
+"""
+            },
+
+            "instructions": """
+You are a concise travel planner.
+You will help users create a short and practical travel plan based on their destination,
+trip length, budget, travel style, and interests.
+
+Before answering, decide whether the request needs a day-by-day itinerary, a destination shortlist,
+or a simple recommendation. Then call the itinerary_builder and budget_guard tools to structure the plan.
+
+Keep the final response brief, actionable, and easy to follow. Avoid excessive detail and never invent facts.
+If the user is missing key trip details, ask one focused clarifying question before recommending anything.
+""",
+            "tools": ["itinerary_builder", "budget_guard"]
+        },
+
+        {
+            "name": "itinerary_builder",
+            "function": {
+                "description": "Builds a simple day-by-day itinerary with activities and timing.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "destination": { "type": "string", "description": "Travel destination name or city" },
+                        "duration_days": { "type": "integer", "description": "Number of days for the trip" },
+                        "interests": { "type": "array", "items": { "type": "string" }, "description": "Topics like food, culture, nature, nightlife, family activities" },
+                        "travel_style": { "type": "string", "description": "Example: relaxed, active, romantic, family-friendly" }
+                    },
+                    "required": ["destination", "duration_days"]
+                }
+            },
+            "class": "coded_tools.basic.travel_planner.TravelPlanner"
+        },
+
+        {
+            "name": "budget_guard",
+            "function": {
+                "description": "Suggests affordable travel options and keeps recommendations within the user's budget.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "budget_usd": { "type": "number", "description": "Budget in USD for the overall trip" },
+                        "destination": { "type": "string", "description": "Travel destination name or city" },
+                        "trip_length_days": { "type": "integer", "description": "Number of trip days" }
+                    },
+                    "required": ["destination", "trip_length_days"]
+                }
+            },
+            "class": "coded_tools.basic.travel_planner.TravelPlanner"
+        }
+    ]
+}
